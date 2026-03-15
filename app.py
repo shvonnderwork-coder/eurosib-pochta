@@ -94,7 +94,11 @@ if st.button("Сгенерировать документы", type="primary"):
                 
                 safe_name = re.sub(r'[\\/*?:"<>|]', "", c_data['RECEIVER_SHORT_NAME']).strip()
                 
+                # Выводим зеленую галочку успеха
                 st.success(f"✅ Документы для **{safe_name}** успешно созданы!")
+                
+                # Добавляем поясняющий текст
+                st.markdown("<p style='text-align: center; color: #555; font-size: 14px; margin-bottom: 5px;'>👇 Нажмите на кнопку ниже, если скачивание не началось автоматически</p>", unsafe_allow_html=True)
                 
                 # --- УМНАЯ КНОПКА ДЛЯ СКАЧИВАНИЯ СРАЗУ ДВУХ ФАЙЛОВ ---
                 b64_o = base64.b64encode(o_buf.getvalue()).decode()
@@ -115,7 +119,7 @@ if st.button("Сгенерировать документы", type="primary"):
                     display: inline-block;
                     font-size: 16px;
                     font-weight: 600;
-                    margin: 4px 2px;
+                    margin: 0px;
                     cursor: pointer;
                     border-radius: 8px;
                     font-family: sans-serif;
@@ -149,10 +153,13 @@ if st.button("Сгенерировать документы", type="primary"):
                         document.body.removeChild(link2);
                     }}, 600);
                 }}
+                
+                // Пробуем запустить скачивание автоматически при появлении кнопки
+                setTimeout(downloadAll, 500);
                 </script>
                 </body>
                 </html>
                 """
                 
                 # Выводим кнопку на экран
-                components.html(custom_button_html, height=70)
+                components.html(custom_button_html, height=60)
