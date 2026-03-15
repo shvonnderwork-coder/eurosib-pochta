@@ -2,7 +2,6 @@ import streamlit as st
 from docxtpl import DocxTemplate
 import requests
 import io
-import zipfile
 import re
 import os
 
@@ -83,31 +82,32 @@ if st.button("Сгенерировать документы", type="primary"):
 
                 doc_o = DocxTemplate("Опись вложения.docx")
                 doc_o.render(data)
+                o_buf = io.BytesIO()
+                doc_o.save(o_buf)
                 
                 # 2. Формируем Конверт
                 doc_k = DocxTemplate("Кому куда.docx")
                 doc_k.render(c_data)
+                k_buf = io.BytesIO()
+                doc_k.save(k_buf)
                 
-                # 3. Упаковываем в ZIP
                 safe_name = re.sub(r'[\\/*?:"<>|]', "", c_data['RECEIVER_SHORT_NAME']).strip()
-                zip_buffer = io.BytesIO()
-                with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zf:
-                    # Сохраняем опись во временный буфер и кладем в архив
-                    o_buf = io.BytesIO()
-                    doc_o.save(o_buf)
-                    zf.writestr(f"Опись_{safe_name}.docx", o_buf.getvalue())
-                    
-                    # То же самое с конвертом
-                    k_buf = io.BytesIO()
-                    doc_k.save(k_buf)
-                    zf.writestr(f"Конверт_{safe_name}.docx", k_buf.getvalue())
                 
                 st.success(f"✅ Документы для **{safe_name}** успешно созданы!")
                 
-                # Кнопка скачивания
-                st.download_button(
-                    label="📥 Скачать архив с документами (ZIP)",
-                    data=zip_buffer.getvalue(),
-                    file_name=f"Документы_{safe_name}.zip",
-                    mime="application/zip"
-                )
+                # --- ВЫВОД КНОПОК ДЛЯ СКАЧИВАНИЯ (БЕЗ АРХИВА) ---
+                col1, col2 = st.columns(2)
+                with col1:
+                    st.download_button(
+                        label="📄 Скачать Опись",
+                        data=o_buf.getvalue(),
+                        file_name=f"Опись_{safe_name}.docx",
+                        mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                    )
+                with col2:
+                    st.download_button(
+                        label="✉️ Скачать Конверт",
+                        data=k_buf.getvalue(),
+                        file_name=f"Конверт_{safe_name}.docx",
+                        mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                    )
