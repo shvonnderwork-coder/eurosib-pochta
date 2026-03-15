@@ -1,9 +1,11 @@
 import streamlit as st
+import streamlit.components.v1 as components
 from docxtpl import DocxTemplate
 import requests
 import io
 import re
 import os
+import base64
 
 # --- НАСТРОЙКИ СТРАНИЦЫ ---
 st.set_page_config(page_title="Почтовые документы", page_icon="🖨️", layout="centered")
@@ -64,7 +66,6 @@ if st.button("Сгенерировать документы", type="primary"):
             if not c_data:
                 st.error("❌ Компания по этому ИНН не найдена.")
             else:
-                # 1. Формируем Опись
                 data = {"SENDER": SENDER_NAME}
                 for i in range(1, 16):
                     if i <= len(items_inputs):
@@ -80,7 +81,7 @@ if st.button("Сгенерировать документы", type="primary"):
                 data["TOTAL_COUNT"] = str(count)
                 data["TOTAL_VALUE"] = f"{count} ({word}) руб. 00 коп." if count > 0 else "0 (Ноль) руб. 00 коп."
 
-                # Рендерим файлы в память (без создания архива)
+                # Рендерим файлы
                 doc_o = DocxTemplate("Опись вложения.docx")
                 doc_o.render(data)
                 o_buf = io.BytesIO()
@@ -93,21 +94,39 @@ if st.button("Сгенерировать документы", type="primary"):
                 
                 safe_name = re.sub(r'[\\/*?:"<>|]', "", c_data['RECEIVER_SHORT_NAME']).strip()
                 
-                st.success(f"✅ Документы для **{safe_name}** успешно созданы!")
+                st.success(f"✅ Документы для **{safe_name}** успешно созданы! Загрузка начнется автоматически.")
                 
-                # --- ВЫВОД КНОПОК ДЛЯ СКАЧИВАНИЯ (БЕЗ АРХИВА) ---
+                # --- АВТОМАТИЧЕСКОЕ СКАЧИВАНИЕ ЧЕРЕЗ JAVASCRIPT ---
+                b64_o = base64.b64encode(o_buf.getvalue()).decode()
+                b64_k = base64.b64encode(k_buf.getvalue()).decode()
+                
+                js_code = f"""
+                <script>
+                    function downloadFile(filename, data) {{
+                        var element = document.createElement('a');
+                        element.setAttribute('href', 'data:application/vnd.openxmlformats-officedocument.wordprocessingml.document;base64,' + data);
+                        element.setAttribute('download', filename);
+                        element.style.display = 'none';
+                        document.body.appendChild(element);
+                        element.click();
+                        document.body.removeChild(element);
+                    }}
+                    
+                    // Скачиваем первый файл
+                    downloadFile("Опись_{safe_name}.docx", "{b64_o}");
+                    
+                    // Ждем полсекунды и скачиваем второй
+                    setTimeout(function() {{
+                        downloadFile("Конверт_{safe_name}.docx", "{b64_k}");
+                    }}, 600);
+                </script>
+                """
+                components.html(js_code, height=0)
+                
+                # Запасные кнопки на случай, если браузер заблокирует всплывающие окна
+                st.markdown("*Если скачивание не началось автоматически, нажмите на кнопки ниже:*")
                 col1, col2 = st.columns(2)
                 with col1:
-                    st.download_button(
-                        label="📄 Скачать Опись",
-                        data=o_buf.getvalue(),
-                        file_name=f"Опись_{safe_name}.docx",
-                        mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-                    )
+                    st.download_button(label="📄 Скачать Опись", data=o_buf.getvalue(), file_name=f"Опись_{safe_name}.docx", mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document")
                 with col2:
-                    st.download_button(
-                        label="✉️ Скачать Конверт",
-                        data=k_buf.getvalue(),
-                        file_name=f"Конверт_{safe_name}.docx",
-                        mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-                    )
+                    st.download_button(label="✉️ Скачать Конверт", data=k_buf.getvalue(), file_name=f"Конверт_{safe_name}.docx", mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document")
