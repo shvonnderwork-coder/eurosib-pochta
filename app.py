@@ -72,4 +72,87 @@ if st.button("Сгенерировать документы", type="primary"):
                         data[f"N_{i}"] = str(i)
                         data[f"ITEM_{i}"] = items_inputs[i-1]
                         data[f"COUNT_{i}"] = "1"
-                        data[f"VALUE_{i}"] = "
+                        data[f"VALUE_{i}"] = "1"
+                    else:
+                        data[f"N_{i}"] = data[f"ITEM_{i}"] = data[f"COUNT_{i}"] = data[f"VALUE_{i}"] = ""
+                
+                count = len(items_inputs)
+                word = num_to_words.get(count, str(count))
+                data["TOTAL_COUNT"] = str(count)
+                data["TOTAL_VALUE"] = f"{count} ({word}) руб. 00 коп." if count > 0 else "0 (Ноль) руб. 00 коп."
+
+                # Рендерим файлы
+                doc_o = DocxTemplate("Опись вложения.docx")
+                doc_o.render(data)
+                o_buf = io.BytesIO()
+                doc_o.save(o_buf)
+                
+                doc_k = DocxTemplate("Кому куда.docx")
+                doc_k.render(c_data)
+                k_buf = io.BytesIO()
+                doc_k.save(k_buf)
+                
+                safe_name = re.sub(r'[\\/*?:"<>|]', "", c_data['RECEIVER_SHORT_NAME']).strip()
+                
+                st.success(f"✅ Документы для **{safe_name}** успешно созданы!")
+                
+                # --- УМНАЯ КНОПКА ДЛЯ СКАЧИВАНИЯ СРАЗУ ДВУХ ФАЙЛОВ ---
+                b64_o = base64.b64encode(o_buf.getvalue()).decode()
+                b64_k = base64.b64encode(k_buf.getvalue()).decode()
+                
+                custom_button_html = f"""
+                <!DOCTYPE html>
+                <html>
+                <head>
+                <style>
+                .btn {{
+                    background-color: #FF4B4B; /* Цвет кнопки Streamlit */
+                    border: none;
+                    color: white;
+                    padding: 12px 24px;
+                    text-align: center;
+                    text-decoration: none;
+                    display: inline-block;
+                    font-size: 16px;
+                    font-weight: 600;
+                    margin: 4px 2px;
+                    cursor: pointer;
+                    border-radius: 8px;
+                    font-family: sans-serif;
+                    width: 100%;
+                    box-sizing: border-box;
+                    transition: background-color 0.3s;
+                }}
+                .btn:hover {{ background-color: #FF3333; }}
+                </style>
+                </head>
+                <body style="margin: 0; padding: 0;">
+                <button class="btn" onclick="downloadAll()">📥 Скачать ОБА документа (Опись + Конверт)</button>
+
+                <script>
+                function downloadAll() {{
+                    // Скачиваем Опись
+                    var link1 = document.createElement('a');
+                    link1.href = "data:application/vnd.openxmlformats-officedocument.wordprocessingml.document;base64,{b64_o}";
+                    link1.download = "Опись_{safe_name}.docx";
+                    document.body.appendChild(link1);
+                    link1.click();
+                    document.body.removeChild(link1);
+
+                    // Ждем 0.6 секунды и скачиваем Конверт
+                    setTimeout(function() {{
+                        var link2 = document.createElement('a');
+                        link2.href = "data:application/vnd.openxmlformats-officedocument.wordprocessingml.document;base64,{b64_k}";
+                        link2.download = "Конверт_{safe_name}.docx";
+                        document.body.appendChild(link2);
+                        link2.click();
+                        document.body.removeChild(link2);
+                    }}, 600);
+                }}
+                </script>
+                </body>
+                </html>
+                """
+                
+                # Выводим кнопку на экран
+                components.html(custom_button_html, height=70)
