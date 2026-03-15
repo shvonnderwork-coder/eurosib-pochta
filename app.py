@@ -80,12 +80,12 @@ if st.button("Сгенерировать документы", type="primary"):
                 data["TOTAL_COUNT"] = str(count)
                 data["TOTAL_VALUE"] = f"{count} ({word}) руб. 00 коп." if count > 0 else "0 (Ноль) руб. 00 коп."
 
+                # Рендерим файлы в память (без создания архива)
                 doc_o = DocxTemplate("Опись вложения.docx")
                 doc_o.render(data)
                 o_buf = io.BytesIO()
                 doc_o.save(o_buf)
                 
-                # 2. Формируем Конверт
                 doc_k = DocxTemplate("Кому куда.docx")
                 doc_k.render(c_data)
                 k_buf = io.BytesIO()
